@@ -1,10 +1,3 @@
-// Polyfill pour punycode si nécessaire (à éviter si possible)
-try {
-  global.punycode = require('punycode');
-} catch (err) {
-  console.log("Module 'punycode' ignoré, aucune dépendance directe détectée.");
-}
-
 // Importation des modules nécessaires
 const { Telegraf, Markup } = require('telegraf');
 require('dotenv').config();
@@ -22,6 +15,11 @@ if (!process.env.BOT_TOKEN) {
   process.exit(1);
 }
 const bot = new Telegraf(process.env.BOT_TOKEN);
+
+// Définir l'URL du webhook et le port
+const HOST = process.env.HOST || 'https://votre-app.onrender.com'; // Remplacez par l'URL de votre application Render
+const PATH = `/webhook/${process.env.BOT_TOKEN}`;
+const PORT = process.env.PORT || 3000;
 
 // Menu principal
 const mainMenu = Markup.inlineKeyboard([
@@ -113,14 +111,17 @@ bot.on('message', async (ctx) => {
   }
 });
 
-// Lancer le bot
-bot.launch()
+// Configurer et démarrer le webhook
+bot.telegram.setWebhook(`${HOST}${PATH}`)
   .then(() => {
-    console.log(`${config.bot_name} est actif.`);
+    console.log(`✅ Webhook configuré sur ${HOST}${PATH}`);
   })
   .catch((err) => {
-    console.error('❌ Erreur lors du lancement du bot :', err);
+    console.error('❌ Erreur lors de la configuration du webhook :', err);
   });
+
+bot.startWebhook(PATH, null, PORT);
+console.log(`🚀 Bot lancé et écoute sur le port ${PORT}`);
 
 // Gérer les erreurs globales
 bot.catch((err) => {
