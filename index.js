@@ -1,48 +1,54 @@
-// Importation des modules nécessaires
-const { Telegraf, Markup } = require('telegraf');
+const { Telegraf } = require('telegraf');
 require('dotenv').config();
 
-// Charger la configuration
-const config = {
-  bot_name: "MYSTIC MD MODÈLE PARKY",
-  owner_name: "Jean Parker",
-  owner_number: "+22898133388",
-};
-
-// Initialiser le bot avec le token
-if (!process.env.BOT_TOKEN) {
-  console.error("❌ Erreur : Le token du bot est manquant. Assurez-vous que BOT_TOKEN est défini dans le fichier .env.");
-  process.exit(1);
-}
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// Définir l'URL du webhook et le port
-const HOST = process.env.HOST || 'https://telegram-bot-o1rv.onrender.com'; // Remplacez par l'URL de votre application Render
-const PATH = `/webhook/${process.env.BOT_TOKEN}`;
-const PORT = process.env.PORT || 3000;
-
-// Menu principal
-const mainMenu = Markup.inlineKeyboard([
-  [Markup.button.callback('🔄 Kick All Members', 'kick_all')],
-  [Markup.button.callback('🔎 Aide', 'help')],
-  [Markup.button.callback('📞 Contact Owner', 'contact_owner')],
-]);
-
-// Commande /start
+// Commande pour afficher un menu des commandes
 bot.start((ctx) => {
-  ctx.reply(
-    `👋 Bonjour ${ctx.from.first_name} !\nJe suis ${config.bot_name}, un bot de modération pour les groupes.\n\nPropriétaire : ${config.owner_name}\nContact : ${config.owner_number}`,
-    mainMenu
-  );
+  ctx.reply(`
+🤖 Bienvenue dans MYSTIC MD MODÈLE PARKY !
+Voici les commandes disponibles :
+- /kickall : Supprime tous les membres sauf les admins.
+- kick @username : Supprime un utilisateur mentionné.
+  `);
 });
 
-// Commande pour afficher le menu
-bot.command('menu', (ctx) => {
-  ctx.reply('🛠️ Voici les commandes disponibles :', mainMenu);
+// Commande pour supprimer un membre mentionné
+bot.hears(/^kick/i, async (ctx) => {
+  const entities = ctx.message.entities;
+
+  if (entities && entities.length > 0) {
+    const mention = entities.find((e) => e.type === 'mention');
+
+    if (mention) {
+      const username = ctx.message.text.substring(mention.offset + 1, mention.offset + mention.length);
+
+      try {
+        // Récupérer les informations du membre via son username
+        const chatMember = await ctx.telegram.getChatMember(ctx.chat.id, username);
+
+        // Vérifier si le membre est administrateur ou créateur
+        if (['administrator', 'creator'].includes(chatMember.status)) {
+          return ctx.reply('❌ Impossible de supprimer un administrateur ou le créateur.');
+        }
+
+        // Supprimer le membre
+        await ctx.telegram.kickChatMember(ctx.chat.id, chatMember.user.id);
+        ctx.reply(`✅ ${chatMember.user.first_name} a été supprimé.`);
+      } catch (err) {
+        console.error(`Erreur lors de la suppression de ${username}:`, err);
+        ctx.reply('❌ Impossible de supprimer cet utilisateur.');
+      }
+    } else {
+      ctx.reply('❌ Mention invalide. Veuillez mentionner un utilisateur à supprimer.');
+    }
+  } else {
+    ctx.reply('❌ Vous devez mentionner un utilisateur avec la commande `kick @username`.');
+  }
 });
 
-// Action : Kick All Members
-bot.action('kick_all', async (ctx) => {
+// Commande pour supprimer tous les membres sauf les admins
+bot.command('kickall', async (ctx) => {
   const chatId = ctx.chat.id;
 
   // Vérifier si l'utilisateur est administrateur
@@ -53,65 +59,33 @@ bot.action('kick_all', async (ctx) => {
 
   ctx.reply('🚨 Suppression de tous les membres en cours...');
   try {
-    const members = await ctx.telegram.getChatMembersCount(chatId);
+    // Récupérer tous les membres du chat
+    const members = await ctx.telegram.getChatAdministrators(chatId);
 
-    // Récupérer et supprimer les membres
-    for (let i = 0; i < members; i++) {
-      const member = await ctx.telegram.getChatMember(chatId, i);
+    // Boucle sur les membres non-admins pour les supprimer
+    for (const member of members) {
       if (['administrator', 'creator'].includes(member.status) || member.user.is_bot) continue;
 
-      await ctx.telegram.kickChatMember(chatId, member.user.id);
+      try {
+        await ctx.telegram.kickChatMember(chatId, member.user.id);
+        console.log(`✅ Membre supprimé : ${member.user.first_name}`);
+      } catch (err) {
+        console.error(`❌ Erreur lors de la suppression de ${member.user.first_name}:`, err);
+      }
     }
+
     ctx.reply('✅ Tous les membres ont été supprimés.');
   } catch (err) {
-    console.error(err);
+    console.error("Erreur lors de la suppression de tous les membres :", err);
     ctx.reply('❌ Une erreur est survenue pendant la suppression des membres.');
   }
 });
 
-// Action : Aide
-bot.action('help', (ctx) => {
-  ctx.reply(
-    `🔧 Commandes disponibles :\n\n` +
-      `/start - Démarrer le bot\n` +
-      `/menu - Afficher ce menu\n` +
-      `kick [mention] - Supprimer un membre mentionné\n` +
-      `/kickall - Supprimer tous les membres sauf les administrateurs\n\n` +
-      `📞 Contact propriétaire : ${config.owner_name} (${config.owner_number})`
-  );
-});
+// Configuration du webhook
+const HOST = process.env.HOST || 'https://telegram-bot-o1rv.onrender.com'; // Remplacez par l'URL de votre app Render
+const PATH = `/webhook/${process.env.BOT_TOKEN}`;
+const PORT = process.env.PORT || 3000;
 
-// Action : Contact Owner
-bot.action('contact_owner', (ctx) => {
-  ctx.reply(
-    `📞 Contactez ${config.owner_name} via WhatsApp : ${config.owner_number}\nOu posez vos questions ici.`
-  );
-});
-
-// Gérer les messages "kick @username"
-bot.on('message', async (ctx) => {
-  const message = ctx.message;
-
-  if (message.text && message.text.toLowerCase().startsWith('kick')) {
-    const entities = message.entities;
-    if (entities && entities[0].type === 'mention') {
-      const username = message.text.substring(entities[0].offset, entities[0].length).trim();
-
-      try {
-        const target = await ctx.telegram.getChatMember(ctx.chat.id, username);
-        await ctx.telegram.kickChatMember(ctx.chat.id, target.user.id);
-        ctx.reply(`✅ ${target.user.first_name} a été supprimé.`);
-      } catch (err) {
-        console.error(err);
-        ctx.reply('❌ Impossible de supprimer cet utilisateur.');
-      }
-    } else {
-      ctx.reply('❌ Veuillez mentionner un utilisateur à supprimer.');
-    }
-  }
-});
-
-// Configurer et démarrer le webhook
 bot.telegram.setWebhook(`${HOST}${PATH}`)
   .then(() => {
     console.log(`✅ Webhook configuré sur ${HOST}${PATH}`);
@@ -123,7 +97,7 @@ bot.telegram.setWebhook(`${HOST}${PATH}`)
 bot.startWebhook(PATH, null, PORT);
 console.log(`🚀 Bot lancé et écoute sur le port ${PORT}`);
 
-// Gérer les erreurs globales
-bot.catch((err) => {
-  console.error('❌ Erreur capturée par le bot :', err);
+// Gestion des erreurs globales
+bot.catch((err, ctx) => {
+  console.error(`❌ Une erreur a été capturée : ${err}`);
 });
