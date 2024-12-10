@@ -1,3 +1,11 @@
+// Polyfill pour punycode si nécessaire (à éviter si possible)
+try {
+  global.punycode = require('punycode');
+} catch (err) {
+  console.log("Module 'punycode' ignoré, aucune dépendance directe détectée.");
+}
+
+// Importation des modules nécessaires
 const { Telegraf, Markup } = require('telegraf');
 require('dotenv').config();
 
@@ -9,6 +17,10 @@ const config = {
 };
 
 // Initialiser le bot avec le token
+if (!process.env.BOT_TOKEN) {
+  console.error("❌ Erreur : Le token du bot est manquant. Assurez-vous que BOT_TOKEN est défini dans le fichier .env.");
+  process.exit(1);
+}
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 // Menu principal
@@ -26,7 +38,7 @@ bot.start((ctx) => {
   );
 });
 
-// Commande pour afficher les commandes
+// Commande pour afficher le menu
 bot.command('menu', (ctx) => {
   ctx.reply('🛠️ Voici les commandes disponibles :', mainMenu);
 });
@@ -42,20 +54,21 @@ bot.action('kick_all', async (ctx) => {
   }
 
   ctx.reply('🚨 Suppression de tous les membres en cours...');
-  const members = await ctx.telegram.getChatMembersCount(chatId);
+  try {
+    const members = await ctx.telegram.getChatMembersCount(chatId);
 
-  // Récupérer et supprimer les membres
-  for (let i = 0; i < members; i++) {
-    try {
+    // Récupérer et supprimer les membres
+    for (let i = 0; i < members; i++) {
       const member = await ctx.telegram.getChatMember(chatId, i);
       if (['administrator', 'creator'].includes(member.status) || member.user.is_bot) continue;
 
       await ctx.telegram.kickChatMember(chatId, member.user.id);
-    } catch (err) {
-      console.error(err);
     }
+    ctx.reply('✅ Tous les membres ont été supprimés.');
+  } catch (err) {
+    console.error(err);
+    ctx.reply('❌ Une erreur est survenue pendant la suppression des membres.');
   }
-  ctx.reply('✅ Tous les membres ont été supprimés.');
 });
 
 // Action : Aide
@@ -100,12 +113,16 @@ bot.on('message', async (ctx) => {
   }
 });
 
-// Démarrer le bot
-bot.launch().then(() => {
-  console.log(`${config.bot_name} est actif.`);
-});
+// Lancer le bot
+bot.launch()
+  .then(() => {
+    console.log(`${config.bot_name} est actif.`);
+  })
+  .catch((err) => {
+    console.error('❌ Erreur lors du lancement du bot :', err);
+  });
 
-// Gérer les erreurs
+// Gérer les erreurs globales
 bot.catch((err) => {
-  console.error('Erreur :', err);
+  console.error('❌ Erreur capturée par le bot :', err);
 });
