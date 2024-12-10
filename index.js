@@ -17,7 +17,7 @@ if (!process.env.BOT_TOKEN) {
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 // Définir l'URL du webhook et le port
-const HOST = process.env.HOST || 'https://api.telegram.org/bot<7980784324:AAEarKtWMUuYCUHLDCH-6kHDQmd_6MaRSZ0>/getWebhookInfo'; // Remplacez par l'URL de votre application Render
+const HOST = process.env.HOST || 'https://telegram-bot-o1rv.onrender.com'; // Remplacez par l'URL de votre application Render
 const PATH = `/webhook/${process.env.BOT_TOKEN}`;
 const PORT = process.env.PORT || 3000;
 
