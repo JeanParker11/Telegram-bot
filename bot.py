@@ -1,9 +1,9 @@
 import os
+import asyncio
 from flask import Flask
-from telegram import Update, Bot
-from telegram.constants import ParseMode
+from telegram import Update, ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from threading import Thread
+from aiohttp import web
 
 # Initialisation de Flask
 app = Flask(__name__)
@@ -12,8 +12,8 @@ app = Flask(__name__)
 def home():
     return "Bot Telegram est en cours d'exécution."
 
-# Fonction pour démarrer le serveur Flask
-def run_flask():
+# Fonction pour démarrer le serveur Flask avec Aiohttp
+async def run_flask():
     port = int(os.getenv("PORT", 5000))  # Render attribue un port via la variable PORT
     app.run(host="0.0.0.0", port=port)
 
@@ -23,7 +23,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Welcome to the bot!", parse_mode=ParseMode.HTML
     )
 
-if __name__ == "__main__":
+async def main():
     # Récupération du token Telegram depuis les variables d'environnement
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token:
@@ -35,9 +35,15 @@ if __name__ == "__main__":
     # Ajout des handlers
     bot.add_handler(CommandHandler("start", start))
 
-    # Lancement du serveur Flask dans un thread séparé
-    flask_thread = Thread(target=run_flask)
-    flask_thread.start()
-
     # Lancement du bot Telegram
-    bot.run_polling()
+    await bot.run_polling()
+
+if __name__ == "__main__":
+    # Exécution asynchrone de Flask et Telegram
+    loop = asyncio.get_event_loop()
+    
+    # Lancer Flask dans une tâche asyncio
+    loop.create_task(run_flask())
+
+    # Lancer Telegram
+    loop.run_until_complete(main())
