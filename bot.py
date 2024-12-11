@@ -8,7 +8,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 if __name__ == "__main__":
-    bot = ApplicationBuilder().token("YOUR_BOT_TOKEN").build()
+    bot = ApplicationBuilder().token("7980784324:AAEarKtWMUuYCUHLDCH-6kHDQmd_6MaRSZ0").build()
 
     bot.add_handler(CommandHandler("start", start))
 
