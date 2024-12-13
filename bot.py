@@ -1,8 +1,9 @@
+# bot.py
 import logging
 from telegram.ext import ApplicationBuilder, CommandHandler
-from config import TELEGRAM_BOT_TOKEN  # Import du token depuis config.py
+from config import TELEGRAM_BOT_TOKEN  # Importer le token depuis config.py
 
-# Activation des logs pour faciliter le débogage
+# Configuration des logs pour le débogage
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
